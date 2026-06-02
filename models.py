@@ -10,7 +10,7 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    provider: Literal["openai", "anthropic", "google", "bluesminds", "custom"]
+    provider: Literal["openai", "anthropic", "google", "bluesminds", "groq", "nvidia", "openrouter", "custom"]
     api_key: str
     base_url: str | None = None
     model: str
@@ -26,7 +26,7 @@ class ModelInfo(BaseModel):
 
 
 class ModelsRequest(BaseModel):
-    provider: Literal["openai", "anthropic", "google", "bluesminds", "custom"]
+    provider: Literal["openai", "anthropic", "google", "bluesminds", "groq", "nvidia", "openrouter", "custom"]
     api_key: str
     base_url: str | None = None
 

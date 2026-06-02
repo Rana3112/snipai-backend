@@ -9,8 +9,11 @@ from .google_provider import stream_chat as google_stream, fetch_models as googl
 
 log = logging.getLogger(__name__)
 
-# Bluesminds uses OpenAI-compatible API
+# Provider base URLs (all OpenAI-compatible except anthropic/google)
 BLUESMINDS_BASE_URL = "https://api.bluesminds.com/v1"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
 def stream_chat(
@@ -41,32 +44,35 @@ def stream_chat(
         )
     elif provider == "bluesminds":
         yield from openai_stream(
-            api_key=api_key,
-            base_url=BLUESMINDS_BASE_URL,
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            api_key=api_key, base_url=BLUESMINDS_BASE_URL, model=model,
+            messages=messages, temperature=temperature, max_tokens=max_tokens,
+        )
+    elif provider == "groq":
+        yield from openai_stream(
+            api_key=api_key, base_url=GROQ_BASE_URL, model=model,
+            messages=messages, temperature=temperature, max_tokens=max_tokens,
+        )
+    elif provider == "nvidia":
+        yield from openai_stream(
+            api_key=api_key, base_url=NVIDIA_NIM_BASE_URL, model=model,
+            messages=messages, temperature=temperature, max_tokens=max_tokens,
+        )
+    elif provider == "openrouter":
+        yield from openai_stream(
+            api_key=api_key, base_url=OPENROUTER_BASE_URL, model=model,
+            messages=messages, temperature=temperature, max_tokens=max_tokens,
         )
     elif provider == "openai":
         yield from openai_stream(
-            api_key=api_key,
-            base_url=base_url or "https://api.openai.com/v1",
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            api_key=api_key, base_url=base_url or "https://api.openai.com/v1",
+            model=model, messages=messages, temperature=temperature, max_tokens=max_tokens,
         )
     elif provider == "custom":
         if not base_url:
             raise ValueError("base_url is required for custom provider")
         yield from openai_stream(
-            api_key=api_key,
-            base_url=base_url,
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            api_key=api_key, base_url=base_url, model=model,
+            messages=messages, temperature=temperature, max_tokens=max_tokens,
         )
     else:
         raise ValueError(f"Unknown provider: {provider}")
@@ -84,6 +90,12 @@ def fetch_models(
         return google_models(api_key=api_key)
     elif provider == "bluesminds":
         return openai_models(api_key=api_key, base_url=BLUESMINDS_BASE_URL)
+    elif provider == "groq":
+        return openai_models(api_key=api_key, base_url=GROQ_BASE_URL)
+    elif provider == "nvidia":
+        return openai_models(api_key=api_key, base_url=NVIDIA_NIM_BASE_URL)
+    elif provider == "openrouter":
+        return openai_models(api_key=api_key, base_url=OPENROUTER_BASE_URL)
     elif provider == "openai":
         return openai_models(api_key=api_key, base_url=base_url or "https://api.openai.com/v1")
     elif provider == "custom":

@@ -6,6 +6,7 @@ from typing import Generator
 from .openai_provider import stream_chat as openai_stream, fetch_models as openai_models
 from .anthropic_provider import stream_chat as anthropic_stream, fetch_models as anthropic_models
 from .google_provider import stream_chat as google_stream, fetch_models as google_models
+from .free_models import PROVIDER_FREE_MODELS, is_free, vision_for
 
 log = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ BLUESMINDS_BASE_URL = "https://api.bluesminds.com/v1"
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENCODE_ZEN_BASE_URL = "https://opencode.ai/zen/v1"
 
 
 def stream_chat(
@@ -62,6 +64,11 @@ def stream_chat(
             api_key=api_key, base_url=OPENROUTER_BASE_URL, model=model,
             messages=messages, temperature=temperature, max_tokens=max_tokens,
         )
+    elif provider == "opencode_zen":
+        yield from openai_stream(
+            api_key=api_key, base_url=OPENCODE_ZEN_BASE_URL, model=model,
+            messages=messages, temperature=temperature, max_tokens=max_tokens,
+        )
     elif provider == "openai":
         yield from openai_stream(
             api_key=api_key, base_url=base_url or "https://api.openai.com/v1",
@@ -78,29 +85,57 @@ def stream_chat(
         raise ValueError(f"Unknown provider: {provider}")
 
 
+def _apply_tier2_whitelist(provider: str, models: list[dict]) -> None:
+    """Mark models as free+vision if they're in the per-provider whitelist.
+    Mutates the list in place.
+    """
+    whitelist = PROVIDER_FREE_MODELS.get(provider, [])
+    if not whitelist:
+        return
+    by_id = {e["id"]: e for e in whitelist}
+    for m in models:
+        entry = by_id.get(m["id"])
+        if not entry:
+            continue
+        m["free"] = True
+        if entry.get("vision"):
+            m["vision"] = True
+
+
 def fetch_models(
     provider: str,
     api_key: str,
     base_url: str | None = None,
 ) -> list[dict]:
-    """Fetch available models for a provider."""
+    """Fetch available models for a provider, enriched with free+vision flags."""
     if provider == "anthropic":
-        return anthropic_models(api_key=api_key)
+        models = anthropic_models(api_key=api_key)
     elif provider == "google":
-        return google_models(api_key=api_key)
+        models = google_models(api_key=api_key)
     elif provider == "bluesminds":
-        return openai_models(api_key=api_key, base_url=BLUESMINDS_BASE_URL)
+        models = openai_models(api_key=api_key, base_url=BLUESMINDS_BASE_URL, provider="bluesminds")
     elif provider == "groq":
-        return openai_models(api_key=api_key, base_url=GROQ_BASE_URL)
+        models = openai_models(api_key=api_key, base_url=GROQ_BASE_URL, provider="groq")
     elif provider == "nvidia":
-        return openai_models(api_key=api_key, base_url=NVIDIA_NIM_BASE_URL)
+        models = openai_models(api_key=api_key, base_url=NVIDIA_NIM_BASE_URL, provider="nvidia")
     elif provider == "openrouter":
-        return openai_models(api_key=api_key, base_url=OPENROUTER_BASE_URL)
+        models = openai_models(api_key=api_key, base_url=OPENROUTER_BASE_URL, provider="openrouter")
+    elif provider == "opencode_zen":
+        models = openai_models(api_key=api_key, base_url=OPENCODE_ZEN_BASE_URL, provider="opencode_zen")
     elif provider == "openai":
-        return openai_models(api_key=api_key, base_url=base_url or "https://api.openai.com/v1")
+        models = openai_models(api_key=api_key, base_url=base_url or "https://api.openai.com/v1", provider="openai")
     elif provider == "custom":
         if not base_url:
             raise ValueError("base_url is required for custom provider")
-        return openai_models(api_key=api_key, base_url=base_url)
+        models = openai_models(api_key=api_key, base_url=base_url, provider="custom")
     else:
         raise ValueError(f"Unknown provider: {provider}")
+
+    # OpenRouter: live pricing already applied by openai_provider.
+    # For everything else (or as a safety net for OpenRouter), apply the
+    # Tier 2 whitelist so free flags are never lost.
+    _apply_tier2_whitelist(provider, models)
+
+    # Sort: free first, then by id.
+    models.sort(key=lambda m: (not m.get("free", False), m["id"]))
+    return models

@@ -93,4 +93,8 @@ def stream_chat(
 
 def fetch_models(api_key: str) -> list[dict]:
     """Return known Anthropic models (no list endpoint)."""
-    return [{"id": m, "name": m} for m in VISION_MODELS]
+    return [
+        {"id": m, "name": m, "free": False, "vision": True,
+         "modality": "text+image->text", "pricing": None}
+        for m in VISION_MODELS
+    ]

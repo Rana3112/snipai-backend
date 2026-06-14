@@ -83,4 +83,15 @@ def stream_chat(
 
 def fetch_models(api_key: str) -> list[dict]:
     """Return known Gemini models (no list endpoint for generative AI)."""
-    return [{"id": m, "name": m} for m in GEMINI_MODELS]
+    vision_ids = {"gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash"}
+    return [
+        {
+            "id": m,
+            "name": m,
+            "free": False,
+            "vision": m in vision_ids,
+            "modality": "text+image->text" if m in vision_ids else "text->text",
+            "pricing": None,
+        }
+        for m in GEMINI_MODELS
+    ]
